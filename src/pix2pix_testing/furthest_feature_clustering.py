@@ -55,10 +55,16 @@ n_clusters = opt.n_clusters
 
 centers = {}
 for label in range(opt.label_nc):
-	feat = features[label]
-	feat = feat[feat[:,-1] > 0.5, :-1]		
-	if feat.shape[0]:
-		n_clusters = min(feat.shape[0], opt.n_clusters)
+        print("Processing label: ", label)
+        feat = features[label]
+        feat = feat[feat[:,-1] > 0.5, :-1]              
+        print(feat.shape)
+        if feat.shape[0]:
+            n_clusters = min(feat.shape[0], opt.n_clusters)
+        else:
+            centers[label] = np.array([[0.0, 0.0, 0.0]]) # need a dummy to sample from during generation          
+            continue
+        print("Creating: ", n_clusters, " clusters")
         points = furthest_first_clustering(feat, n_clusters)
         centers[label] = points
 save_name = os.path.join(save_path, name + '_extrema_%03d.npy' % opt.n_clusters)
