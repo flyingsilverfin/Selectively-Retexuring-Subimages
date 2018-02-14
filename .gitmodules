@@ -1,6 +1,3 @@
 [submodule "submodules/pix2pixHD"]
 	path = submodules/pix2pixHD
 	url = https://github.com/flyingsilverfin/pix2pixHD.git 
-[submodule "submodules/PSPNet-Keras-tensorflow"]
-	path = submodules/PSPNet-Keras-tensorflow
-	url = https://github.com/Vladkryvoruchko/PSPNet-Keras-tensorflow.git
