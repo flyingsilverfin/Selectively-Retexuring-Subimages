@@ -14,4 +14,5 @@ For pix2pixHD (https://github.com/flyingsilverfin/pix2pixHD)
 For PSPNet-Keras (https://github.com/Vladkryvoruchko/PSPNet-Keras-tensorflow)
 * Tensorflow (-gpu)
 * Keras 2.0.6 (doesn't work with 2.1.x)
+* h5py
 
