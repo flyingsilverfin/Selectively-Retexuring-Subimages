@@ -1,9 +1,9 @@
 # set to wherever pix2pixHD root is
 pix2pixHD_root="/local/scratch/js2173/pytorch/Selectively-Retexuring-Subimages/submodules/pix2pixHD"
 decay_epochs=10        # 10 epochs for 1 cycle from start_lr to 0
-start_lr=0.001
+start_lr=0.00025
 start_epoch=100        # resume training here
-update_lr=100          # update LR every 100 iterations (fractional LR update)
+update_lr=200          # update LR every 100 iterations (fractional LR update)
 
 # include  which_epoch to start new cos decay cycle
 # otherwise it will continue from latest_

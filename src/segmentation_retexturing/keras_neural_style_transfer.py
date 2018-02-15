@@ -1,6 +1,6 @@
 from __future__ import print_function
 from keras.preprocessing.image import load_img, img_to_array
-from scipy.misc import imsave
+from scipy.misc import imsave, imresize
 import numpy as np
 from scipy.optimize import fmin_l_bfgs_b
 import time
@@ -16,26 +16,40 @@ encapsulated in a single class for use via other programs
 
 class NeuralStyleTransfer(object):
     def __init__(self, 
-                 content_weight=0.025, 
-                 style_weight=1.0,
-                 total_variation_weight=1.0,
+                 #content_weight=0.025, 
+                 #style_weight=1.0,
+                 #total_variation_weight=1.0,
+#                  content_weight=1.0,   # these were relatively good! 
+#                  style_weight=100.0,
+#                  total_variation_weight=0.1,
+                 
+#                  content_weight=2.0, 
+#                  style_weight=10.0,
+#                  total_variation_weight=800.0,   # these are quite good, esp when not pre-masking image before doing transfer
+                 content_weight=2.0, 
+                 style_weight=40.0,
+                 total_variation_weight=600.0,
                  iterations=10,
-                 result_prefix="restyled_"):
+                 result_prefix="restyled"):
+        
         self.content_weight = content_weight
         self.style_weight = style_weight
         self.tv_weight = total_variation_weight
         self.iters = iterations
         self.result_prefix = result_prefix
 
-    def _configure(self):
-        
 
 
     # util function to open, resize, format pictures into appropriate tensors
-    def _preprocess_image(self, image_path, target_img_nrows, target_img_ncols):
-        img = load_img(image_path, target_size=(target_img_nrows, target_img_ncols))
-        img = img_to_array(img)
+    def _preprocess_image(self, image, target_img_nrows, target_img_ncols):
+        # check if image is an image or image path
+        if type(image) == str:
+            img = load_img(image_path, target_size=(target_img_nrows, target_img_ncols))
+            img = img_to_array(img)
+        else:
+            img = imresize(image, (target_img_nrows, target_img_ncols))
         img = np.expand_dims(img, axis=0)
+        img = np.float64(img)
         img = vgg19.preprocess_input(img)
         return img
 
@@ -47,6 +61,7 @@ class NeuralStyleTransfer(object):
             x = x.transpose((1, 2, 0))
         else:
             x = x.reshape((target_img_nrows, target_img_ncols, 3))
+        x = np.float64(x)
         # Remove zero-center by mean pixel
         x[:, :, 0] += 103.939
         x[:, :, 1] += 116.779
@@ -71,7 +86,7 @@ class NeuralStyleTransfer(object):
     # It is based on the gram matrices (which capture style) of
     # feature maps from the style reference image
     # and from the generated image
-    def _style_loss(self, style, combination):
+    def _style_loss(self, style, combination, img_nrows, img_ncols):
         assert K.ndim(style) == 3
         assert K.ndim(combination) == 3
         S = self._gram_matrix(style)
@@ -111,34 +126,34 @@ class NeuralStyleTransfer(object):
             grad_values = np.array(outs[1:]).flatten().astype('float64')
         return loss_value, grad_values
 
-    def apply(base_image, style_image):
-        # if given as paths
+    def transfer(self, base_image, style, target_width=400, iters_override=None):
+
+        # if given as path
         if type(base_image) == str:
             width, height = load_img(base_image).size
         else:
-            width, height = base_image.size
-            
+            height, width, _ = base_image.shape
         #  TODO flexible size
-        target_img_nrows = 400
-        target_img_ncols = int(width * img_nrows / height)
+        target_img_ncols = target_width
+        target_img_nrows = int(height * target_img_ncols / width)
+        
+        print(target_img_nrows, target_img_ncols)
 
-        # if style image given as path
-        if type(style_image) == str:
-            style_img = self._preprocess_image(style_image)
+        style = self._preprocess_image(style, target_img_nrows, target_img_ncols)
             
         
 
 
         # get tensor representations of our images
-        base_img = self._preprocess_image(base_image, target_nrows, target_ncols)
+        base_img = self._preprocess_image(base_image, target_img_nrows, target_img_ncols)
         base_img_var = K.variable(base_img)
-        style_reference_image = K.variable(style_img)
+        style_reference_image = K.variable(style)
         
         # this will contain our generated image
         if K.image_data_format() == 'channels_first':
-            combination_image = K.placeholder((1, 3, target_nrows, target_ncols))
+            combination_image = K.placeholder((1, 3, target_img_nrows, target_img_ncols))
         else:
-            combination_image = K.placeholder((1, target_nrows, target_ncols, 3))
+            combination_image = K.placeholder((1, target_img_nrows, target_img_ncols, 3))
         
         # combine the 3 images into a single Keras tensor
         input_tensor = K.concatenate([base_img,
@@ -150,9 +165,6 @@ class NeuralStyleTransfer(object):
         model = vgg19.VGG19(input_tensor=input_tensor,
                             weights='imagenet', include_top=False)
         print('Model loaded.')
-        
-        # get the symbolic outputs of each "key" layer (we gave them unique names).
-        outputs_dict = dict([(layer.name, layer.output) for layer in 
 
 
         # get the symbolic outputs of each "key" layer (we gave them unique names).
@@ -174,9 +186,9 @@ class NeuralStyleTransfer(object):
             layer_features = outputs_dict[layer_name]
             style_reference_features = layer_features[1, :, :, :]
             combination_features = layer_features[2, :, :, :]
-            sl = self._style_loss(style_reference_features, combination_features)
+            sl = self._style_loss(style_reference_features, combination_features, target_img_nrows, target_img_ncols)
             loss += (self.style_weight / len(feature_layers)) * sl
-        loss += self.total_variation_weight * self._total_variation_loss(combination_image)
+        loss += self.tv_weight * self._total_variation_loss(combination_image, target_img_nrows, target_img_ncols)
 
         # gradients of generated image wrt 
         grads = K.gradients(loss, combination_image)
@@ -191,25 +203,30 @@ class NeuralStyleTransfer(object):
 
 
 
-        evaluator = Evaluator(eval_loss_and_grads = lambda x: self.eval_loss_and_grads(x, target_img_nrows, target_img_ncols))
+        evaluator = Evaluator(eval_loss_and_grads = lambda x: self.eval_loss_and_grads(x, self.f_outputs, target_img_nrows, target_img_ncols))
         
         # run scipy-based optimization (L-BFGS) over the pixels of the generated image
         # so as to minimize the neural style loss
         x = base_img
 
-        for i in range(iterations):
+        if iters_override is not None:
+            iters = iters_override
+        else:
+            iters = self.iters
+        for i in range(iters):
             print('Start of iteration', i)
             start_time = time.time()
             x, min_val, info = fmin_l_bfgs_b(evaluator.loss, x.flatten(),
                                              fprime=evaluator.grads, maxfun=20)
             print('Current loss value:', min_val)
             # save current generated image
-            img = deprocess_image(x.copy())
-            fname = result_prefix + '_at_iteration_%d.png' % i
+            img = self._deprocess_image(x.copy(), target_img_nrows, target_img_ncols)
+            fname = self.result_prefix + '_at_iteration_%d.png' % i
             imsave(fname, img)
             end_time = time.time()
             print('Image saved as', fname)
             print('Iteration %d completed in %ds' % (i, end_time - start_time))
+        return img
 
 # this Evaluator class makes it possible
 # to compute loss and gradients in one pass
