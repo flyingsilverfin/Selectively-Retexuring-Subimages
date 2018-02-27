@@ -1,0 +1,7 @@
+1 & 2 using my custom layers [ 1, 2, 14,15, 17, 18]
+
+1: Unknown -- must be higher style weight...?
+2: cw = 0.025, sw = 2, tw = 0.1
+3: [1, 2, 4, 12, 17], content_weight=2.0, style_weight=10.0, total_variation_weight=800.0,
+
+
