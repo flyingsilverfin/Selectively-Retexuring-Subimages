@@ -27,6 +27,8 @@ irregular 3:
 
 
 last one 1:
+	[1, 2, 4, 12, 17], content_weight=2.0, style_weight=10.0, total_variation_weight=800.0,
+
 
 last one 2:
 	[ 1, 2, 14,15, 17, 18]
@@ -37,4 +39,9 @@ last one 3:
      content_weight=2.0, 
      style_weight=40.0,
      total_variation_weight=600.0,
+
+
+
+**** NOTE ****
+1 person was color blind!
 

@@ -40,3 +40,8 @@ last one 3:
      style_weight=40.0,
      total_variation_weight=600.0,
 
+total variation error component is difficult to reduce/train down. High TW => very little variation and almost no changes
+
+**** NOTE ****
+1 person was color blind!
+
