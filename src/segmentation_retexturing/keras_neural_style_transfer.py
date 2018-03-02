@@ -16,9 +16,9 @@ encapsulated in a single class for use via other programs
 
 class NeuralStyleTransfer(object):
     def __init__(self, 
-                 #content_weight=0.025, 
-                 #style_weight=1.0,
-                 #total_variation_weight=1.0,
+#                  content_weight=0.025, 
+#                  style_weight=10.0,
+#                  total_variation_weight=1.0,
 #                  content_weight=1.0,   # these were relatively good! 
 #                  style_weight=100.0,
 #                  total_variation_weight=0.1,
@@ -26,9 +26,15 @@ class NeuralStyleTransfer(object):
 #                  content_weight=2.0, 
 #                  style_weight=10.0,
 #                  total_variation_weight=800.0,   # these are quite good, esp when not pre-masking image before doing transfer
+
+                 #***these are good***
                  content_weight=2.0, 
                  style_weight=40.0,
                  total_variation_weight=600.0,
+                 
+#                  content_weight=0.5, 
+#                  style_weight=100.0,
+#                  total_variation_weight=0.1,
                  iterations=10,
                  result_prefix="restyled"):
         
@@ -126,7 +132,7 @@ class NeuralStyleTransfer(object):
             grad_values = np.array(outs[1:]).flatten().astype('float64')
         return loss_value, grad_values
 
-    def transfer(self, base_image, style, target_width=400, iters_override=None):
+    def transfer(self, base_image, style, target_width=400, iters_override=None, layers=[1, 4, 12, 17]):
 
         # if given as path
         if type(base_image) == str:
@@ -166,11 +172,13 @@ class NeuralStyleTransfer(object):
                             weights='imagenet', include_top=False)
         print('Model loaded.')
 
-
+        #for (i, layer) in enumerate(model.layers):
+        #    print(i, layer.name)
+        
         # get the symbolic outputs of each "key" layer (we gave them unique names).
         outputs_dict = dict([(layer.name, layer.output) for layer in model.layers])
         
-        # compute the neural style loss
+        # compute the neural content loss
         # combine these loss functions into a single scalar
         loss = K.variable(0.)
         layer_features = outputs_dict['block5_conv2']
@@ -179,15 +187,22 @@ class NeuralStyleTransfer(object):
         loss += self.content_weight * self._content_loss(base_image_features,
                                                          combination_features)
 
-        feature_layers = ['block1_conv1', 'block2_conv1',
-                          'block3_conv1', 'block4_conv1',
-                          'block5_conv4']
-        for layer_name in feature_layers:
-            layer_features = outputs_dict[layer_name]
+        
+        # compute the neural style loss using the given layers
+#         feature_layers = ['block1_conv1', 'block2_conv1',
+#                           'block3_conv1', 'block4_conv1',
+#                           'block5_conv4']
+#         for layer_name in feature_layers:
+#             layer_features = outputs_dict[layer_name]
+        for layer_num in layers:
+            layer = model.layers[layer_num]
+            layer_features = layer.output
             style_reference_features = layer_features[1, :, :, :]
             combination_features = layer_features[2, :, :, :]
             sl = self._style_loss(style_reference_features, combination_features, target_img_nrows, target_img_ncols)
-            loss += (self.style_weight / len(feature_layers)) * sl
+            #loss += (self.style_weight / len(feature_layers)) * sl
+            loss += (self.style_weight / len(layers)) * sl
+
         loss += self.tv_weight * self._total_variation_loss(combination_image, target_img_nrows, target_img_ncols)
 
         # gradients of generated image wrt 
